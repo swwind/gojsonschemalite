@@ -60,7 +60,7 @@ func (sl *SchemaLoader) validateMetaschema(documentNode interface{}) error {
 
 	// If no explicit "$schema" is used, use the default metaschema associated with the draft used
 	if schema == "" {
-		schema = drafts.GetSchemaURL(sl.Draft)
+		schema = getSchemaURL(sl.Draft)
 	}
 
 	//Disable validation when loading the metaschema to prevent an infinite recursive loop

@@ -17,11 +17,6 @@ type errorTemplate struct {
 
 type (
 
-	// FalseError. ErrorDetails: -
-	FalseError struct {
-		ResultErrorFields
-	}
-
 	// RequiredError indicates that a required field is missing
 	// ErrorDetails: property string
 	RequiredError struct {
@@ -70,12 +65,6 @@ type (
 		ResultErrorFields
 	}
 
-	// ConstError indicates a const error
-	// ErrorDetails: allowed
-	ConstError struct {
-		ResultErrorFields
-	}
-
 	// EnumError indicates an enum error
 	// ErrorDetails: allowed
 	EnumError struct {
@@ -106,12 +95,6 @@ type (
 		ResultErrorFields
 	}
 
-	// ArrayContainsError is produced if an array contains invalid items
-	// ErrorDetails:
-	ArrayContainsError struct {
-		ResultErrorFields
-	}
-
 	// ArrayMinPropertiesError is produced if an object contains less properties than the allowed minimum
 	// ErrorDetails: min
 	ArrayMinPropertiesError struct {
@@ -133,12 +116,6 @@ type (
 	// InvalidPropertyPatternError is produced if an pattern was found
 	// ErrorDetails: property, pattern
 	InvalidPropertyPatternError struct {
-		ResultErrorFields
-	}
-
-	// InvalidPropertyNameError is produced if an invalid-named property was found
-	// ErrorDetails: property
-	InvalidPropertyNameError struct {
 		ResultErrorFields
 	}
 
@@ -195,18 +172,6 @@ type (
 	NumberLTError struct {
 		ResultErrorFields
 	}
-
-	// ConditionThenError is produced if a condition's "then" validation is invalid
-	// ErrorDetails: -
-	ConditionThenError struct {
-		ResultErrorFields
-	}
-
-	// ConditionElseError is produced if a condition's "else" condition is invalid
-	// ErrorDetails: -
-	ConditionElseError struct {
-		ResultErrorFields
-	}
 )
 
 // newError takes a ResultError type and sets the type, context, description, details, value, and field
@@ -214,9 +179,6 @@ func newError(err ResultError, context *JsonContext, value interface{}, locale l
 	var t string
 	var d string
 	switch err.(type) {
-	case *FalseError:
-		t = "false"
-		d = locale.False()
 	case *RequiredError:
 		t = "required"
 		d = locale.Required()
@@ -241,9 +203,6 @@ func newError(err ResultError, context *JsonContext, value interface{}, locale l
 	case *InternalError:
 		t = "internal"
 		d = locale.Internal()
-	case *ConstError:
-		t = "const"
-		d = locale.Const()
 	case *EnumError:
 		t = "enum"
 		d = locale.Enum()
@@ -259,9 +218,6 @@ func newError(err ResultError, context *JsonContext, value interface{}, locale l
 	case *ItemsMustBeUniqueError:
 		t = "unique"
 		d = locale.Unique()
-	case *ArrayContainsError:
-		t = "contains"
-		d = locale.ArrayContains()
 	case *ArrayMinPropertiesError:
 		t = "array_min_properties"
 		d = locale.ArrayMinProperties()
@@ -274,9 +230,6 @@ func newError(err ResultError, context *JsonContext, value interface{}, locale l
 	case *InvalidPropertyPatternError:
 		t = "invalid_property_pattern"
 		d = locale.InvalidPropertyPattern()
-	case *InvalidPropertyNameError:
-		t = "invalid_property_name"
-		d = locale.InvalidPropertyName()
 	case *StringLengthGTEError:
 		t = "string_gte"
 		d = locale.StringGTE()
@@ -304,12 +257,6 @@ func newError(err ResultError, context *JsonContext, value interface{}, locale l
 	case *NumberLTError:
 		t = "number_lt"
 		d = locale.NumberLT()
-	case *ConditionThenError:
-		t = "condition_then"
-		d = locale.ConditionThen()
-	case *ConditionElseError:
-		t = "condition_else"
-		d = locale.ConditionElse()
 	}
 
 	err.SetType(t)

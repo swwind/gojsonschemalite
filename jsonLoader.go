@@ -179,9 +179,9 @@ func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
 
 func (l *jsonReferenceLoader) loadFromHTTP(address string) (interface{}, error) {
 
-	// returned cached versions for metaschemas for drafts 4, 6 and 7
-	// for performance and allow for easier offline use
-	if metaSchema := drafts.GetMetaSchema(address); metaSchema != "" {
+	// return a cached version of the draft-04 metaschema
+	// for performance and to allow for easier offline use
+	if metaSchema := getMetaSchema(address); metaSchema != "" {
 		return decodeJSONUsingNumber(strings.NewReader(metaSchema))
 	}
 

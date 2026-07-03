@@ -75,7 +75,6 @@ func (v *subSchema) validateRecursive(currentSubSchema *subSchema, currentNode i
 		internalLog(" %v", currentNode)
 	}
 
-
 	// Handle referenced schemas, returns directly when a $ref is found
 	if currentSubSchema.refSchema != nil {
 		v.validateRecursive(currentSubSchema.refSchema, currentNode, result, context)
@@ -498,8 +497,6 @@ func (v *subSchema) validateArray(currentSubSchema *subSchema, value []interface
 		}
 	}
 
-
-
 	result.incrementScore()
 }
 
@@ -581,7 +578,6 @@ func (v *subSchema) validateObject(currentSubSchema *subSchema, value map[string
 			}
 		}
 	}
-
 
 	result.incrementScore()
 }

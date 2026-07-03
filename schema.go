@@ -131,9 +131,9 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *subSchema)
 
 	// definitions
 	if existsMapKey(m, KEY_DEFINITIONS) {
-		if isKind(m[KEY_DEFINITIONS], reflect.Map, reflect.Bool) {
+		if isKind(m[KEY_DEFINITIONS], reflect.Map) {
 			for _, dv := range m[KEY_DEFINITIONS].(map[string]interface{}) {
-				if isKind(dv, reflect.Map, reflect.Bool) {
+				if isKind(dv, reflect.Map) {
 
 					newSchema := &subSchema{property: KEY_DEFINITIONS, parent: currentSchema}
 
@@ -327,7 +327,6 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *subSchema)
 		}
 	}
 
-
 	// dependencies
 	if existsMapKey(m, KEY_DEPENDENCIES) {
 		err := d.parseDependencies(m[KEY_DEPENDENCIES], currentSchema)
@@ -340,7 +339,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *subSchema)
 	if existsMapKey(m, KEY_ITEMS) {
 		if isKind(m[KEY_ITEMS], reflect.Slice) {
 			for _, itemElement := range m[KEY_ITEMS].([]interface{}) {
-				if isKind(itemElement, reflect.Map, reflect.Bool) {
+				if isKind(itemElement, reflect.Map) {
 					newSchema := &subSchema{parent: currentSchema, property: KEY_ITEMS}
 					newSchema.ref = currentSchema.ref
 					currentSchema.itemsChildren = append(currentSchema.itemsChildren, newSchema)
@@ -359,7 +358,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *subSchema)
 				}
 				currentSchema.itemsChildrenIsSingleSchema = false
 			}
-		} else if isKind(m[KEY_ITEMS], reflect.Map, reflect.Bool) {
+		} else if isKind(m[KEY_ITEMS], reflect.Map) {
 			newSchema := &subSchema{parent: currentSchema, property: KEY_ITEMS}
 			newSchema.ref = currentSchema.ref
 			currentSchema.itemsChildren = append(currentSchema.itemsChildren, newSchema)
@@ -435,25 +434,12 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *subSchema)
 	}
 
 	if existsMapKey(m, KEY_EXCLUSIVE_MINIMUM) {
-		if !isKind(m[KEY_EXCLUSIVE_MINIMUM], reflect.Bool) {
-			return errors.New(formatErrorDescription(
-				Locale.InvalidType(),
-				ErrorDetails{
-					"expected": TYPE_BOOLEAN,
-					"given":    KEY_EXCLUSIVE_MINIMUM,
-				},
-			))
+		exclusiveMinimum, minimum, err := parseExclusiveBound(m[KEY_EXCLUSIVE_MINIMUM], KEY_EXCLUSIVE_MINIMUM, KEY_MINIMUM, currentSchema.minimum)
+		if err != nil {
+			return err
 		}
-		if currentSchema.minimum == nil {
-			return errors.New(formatErrorDescription(
-				Locale.CannotBeUsedWithout(),
-				ErrorDetails{"x": KEY_EXCLUSIVE_MINIMUM, "y": KEY_MINIMUM},
-			))
-		}
-		if m[KEY_EXCLUSIVE_MINIMUM].(bool) {
-			currentSchema.exclusiveMinimum = currentSchema.minimum
-			currentSchema.minimum = nil
-		}
+		currentSchema.exclusiveMinimum = exclusiveMinimum
+		currentSchema.minimum = minimum
 	}
 
 	if existsMapKey(m, KEY_MAXIMUM) {
@@ -468,25 +454,12 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *subSchema)
 	}
 
 	if existsMapKey(m, KEY_EXCLUSIVE_MAXIMUM) {
-		if !isKind(m[KEY_EXCLUSIVE_MAXIMUM], reflect.Bool) {
-			return errors.New(formatErrorDescription(
-				Locale.InvalidType(),
-				ErrorDetails{
-					"expected": TYPE_BOOLEAN,
-					"given":    KEY_EXCLUSIVE_MAXIMUM,
-				},
-			))
+		exclusiveMaximum, maximum, err := parseExclusiveBound(m[KEY_EXCLUSIVE_MAXIMUM], KEY_EXCLUSIVE_MAXIMUM, KEY_MAXIMUM, currentSchema.maximum)
+		if err != nil {
+			return err
 		}
-		if currentSchema.maximum == nil {
-			return errors.New(formatErrorDescription(
-				Locale.CannotBeUsedWithout(),
-				ErrorDetails{"x": KEY_EXCLUSIVE_MAXIMUM, "y": KEY_MAXIMUM},
-			))
-		}
-		if m[KEY_EXCLUSIVE_MAXIMUM].(bool) {
-			currentSchema.exclusiveMaximum = currentSchema.maximum
-			currentSchema.maximum = nil
-		}
+		currentSchema.exclusiveMaximum = exclusiveMaximum
+		currentSchema.maximum = maximum
 	}
 
 	// validation : string
@@ -682,6 +655,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *subSchema)
 		}
 	}
 
+	// validation : all
 
 	if existsMapKey(m, KEY_ENUM) {
 		if isKind(m[KEY_ENUM], reflect.Slice) {
@@ -763,7 +737,7 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *subSchema)
 	}
 
 	if existsMapKey(m, KEY_NOT) {
-		if isKind(m[KEY_NOT], reflect.Map, reflect.Bool) {
+		if isKind(m[KEY_NOT], reflect.Map) {
 			newSchema := &subSchema{property: KEY_NOT, parent: currentSchema, ref: currentSchema.ref}
 			currentSchema.not = newSchema
 			err := d.parseSchema(m[KEY_NOT], newSchema)
@@ -778,9 +752,32 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *subSchema)
 		}
 	}
 
-
-
 	return nil
+}
+
+// parseExclusiveBound parses a Draft4-style boolean exclusiveMinimum/exclusiveMaximum value.
+// When set to true, it moves the paired bound (minimum/maximum) into the exclusive bound
+// and clears the inclusive one; otherwise the inclusive bound is left untouched.
+func parseExclusiveBound(value interface{}, exclusiveKey, boundKey string, bound *big.Rat) (exclusiveBound *big.Rat, newBound *big.Rat, err error) {
+	if !isKind(value, reflect.Bool) {
+		return nil, bound, errors.New(formatErrorDescription(
+			Locale.InvalidType(),
+			ErrorDetails{
+				"expected": TYPE_BOOLEAN,
+				"given":    exclusiveKey,
+			},
+		))
+	}
+	if bound == nil {
+		return nil, nil, errors.New(formatErrorDescription(
+			Locale.CannotBeUsedWithout(),
+			ErrorDetails{"x": exclusiveKey, "y": boundKey},
+		))
+	}
+	if value.(bool) {
+		return bound, nil, nil
+	}
+	return nil, bound, nil
 }
 
 func (d *Schema) parseReference(documentNode interface{}, currentSchema *subSchema) error {
@@ -807,7 +804,7 @@ func (d *Schema) parseReference(documentNode interface{}, currentSchema *subSche
 		return err
 	}
 
-	if !isKind(refdDocumentNode, reflect.Map, reflect.Bool) {
+	if !isKind(refdDocumentNode, reflect.Map) {
 		return errors.New(formatErrorDescription(
 			Locale.MustBeOfType(),
 			ErrorDetails{"key": STRING_SCHEMA, "type": TYPE_OBJECT},
@@ -881,7 +878,7 @@ func (d *Schema) parseDependencies(documentNode interface{}, currentSchema *subS
 				currentSchema.dependencies[k] = valuesToRegister
 			}
 
-		case reflect.Map, reflect.Bool:
+		case reflect.Map:
 			depSchema := &subSchema{property: k, parent: currentSchema, ref: currentSchema.ref}
 			err := d.parseSchema(m[k], depSchema)
 			if err != nil {

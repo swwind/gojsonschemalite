@@ -46,7 +46,6 @@ const (
 	KEY_PROPERTIES            = "properties"
 	KEY_PATTERN_PROPERTIES    = "patternProperties"
 	KEY_ADDITIONAL_PROPERTIES = "additionalProperties"
-	KEY_PROPERTY_NAMES        = "propertyNames"
 	KEY_DEFINITIONS           = "definitions"
 	KEY_MULTIPLE_OF           = "multipleOf"
 	KEY_MINIMUM               = "minimum"
@@ -64,16 +63,12 @@ const (
 	KEY_MIN_ITEMS             = "minItems"
 	KEY_MAX_ITEMS             = "maxItems"
 	KEY_UNIQUE_ITEMS          = "uniqueItems"
-	KEY_CONTAINS              = "contains"
 	KEY_CONST                 = "const"
 	KEY_ENUM                  = "enum"
 	KEY_ONE_OF                = "oneOf"
 	KEY_ANY_OF                = "anyOf"
 	KEY_ALL_OF                = "allOf"
 	KEY_NOT                   = "not"
-	KEY_IF                    = "if"
-	KEY_THEN                  = "then"
-	KEY_ELSE                  = "else"
 )
 
 type subSchema struct {
@@ -130,7 +125,7 @@ type subSchema struct {
 	additionalItems interface{}
 
 	// validation : all
-	enum   []string
+	enum []string
 
 	// validation : subSchema
 	oneOf []*subSchema
