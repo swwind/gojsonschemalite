@@ -22,6 +22,8 @@
 package gojsonschema
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"testing"
 )
 
@@ -171,5 +173,35 @@ func TestIDBasedRef(t *testing.T) {
 	}
 	if res.Valid() {
 		t.Fatal("Expected invalid")
+	}
+}
+
+func TestRealRulesSchemas(t *testing.T) {
+	// Let's load the ESLint rules schemas file
+	content, err := ioutil.ReadFile("../bench-validator/rules-schemas.json")
+	if err != nil {
+		t.Skip("rules-schemas.json not found, skipping integration test")
+		return
+	}
+
+	var rules map[string]interface{}
+	err = json.Unmarshal(content, &rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for ruleName, ruleGroup := range rules {
+		groupMap, ok := ruleGroup.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		for subRuleName, schemaObj := range groupMap {
+			// Compile each rule's schema
+			loader := NewRawLoader(schemaObj)
+			_, err := NewSchema(loader)
+			if err != nil {
+				t.Fatalf("Failed to compile schema for %s/%s: %v", ruleName, subRuleName, err)
+			}
+		}
 	}
 }

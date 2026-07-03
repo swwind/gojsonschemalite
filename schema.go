@@ -783,7 +783,7 @@ func (d *Schema) parseReference(refStr string, currentSchema *subSchema) error {
 		return fmt.Errorf("reference '%s' not found in document", refStr)
 	}
 
-	if !isKind(resolvedNode, reflect.Map) {
+	if !isKind(resolvedNode, reflect.Map, reflect.Bool) {
 		return errors.New(formatErrorDescription(
 			Locale.MustBeOfType(),
 			ErrorDetails{"key": STRING_SCHEMA, "type": TYPE_OBJECT},
@@ -813,7 +813,27 @@ func getJSONPointerNode(doc interface{}, pointer string) (interface{}, error) {
 	parts := strings.Split(pointer, "/")
 	currentNode := doc
 
+	// If the schema was wrapped from array into {"type": "array", "items": [...]},
+	// json pointers like "#/items/0/..." should skip the wrapper part
+	if len(parts) > 2 && parts[1] == "items" {
+		if m, ok := doc.(map[string]interface{}); ok {
+			if itemsField, ok := m["items"]; ok {
+				// If items is a slice, we can traverse it directly
+				if sliceNode, ok := itemsField.([]interface{}); ok {
+					idx, err := strconv.Atoi(parts[2])
+					if err == nil && idx >= 0 && idx < len(sliceNode) {
+						currentNode = sliceNode[idx]
+						parts = parts[2:]
+					}
+				}
+			}
+		}
+	}
+
 	for _, part := range parts[1:] {
+		if part == "" {
+			continue
+		}
 		// Unescape json pointer: ~1 -> /, ~0 -> ~
 		part = strings.ReplaceAll(part, "~1", "/")
 		part = strings.ReplaceAll(part, "~0", "~")

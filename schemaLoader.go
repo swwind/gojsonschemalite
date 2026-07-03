@@ -17,6 +17,7 @@ package gojsonschema
 import (
 	"bytes"
 	"errors"
+	"reflect"
 )
 
 // SchemaLoader is used to load schemas
@@ -87,6 +88,14 @@ func (sl *SchemaLoader) Compile(rootSchema JSONLoader) (*Schema, error) {
 	doc, err := rootSchema.LoadJSON()
 	if err != nil {
 		return nil, err
+	}
+
+	// If the loaded schema is an array (slice), wrap it into {"type": "array", "items": doc} as ESLint does
+	if isKind(doc, reflect.Slice) {
+		doc = map[string]interface{}{
+			"type":  "array",
+			"items": doc,
+		}
 	}
 
 	if sl.Validate {

@@ -115,13 +115,18 @@ func isJSONNumber(what interface{}) bool {
 }
 
 func checkJSONInteger(what interface{}) (isInt bool) {
-
-	jsonNumber := what.(json.Number)
-
-	bigFloat, isValidNumber := new(big.Rat).SetString(string(jsonNumber))
-
-	return isValidNumber && bigFloat.IsInt()
-
+	switch v := what.(type) {
+	case json.Number:
+		bigFloat, isValidNumber := new(big.Rat).SetString(string(v))
+		return isValidNumber && bigFloat.IsInt()
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return true
+	case float64:
+		return v == float64(int64(v))
+	case float32:
+		return v == float32(int32(v))
+	}
+	return false
 }
 
 // same as ECMA Number.MAX_SAFE_INTEGER and Number.MIN_SAFE_INTEGER
@@ -131,41 +136,92 @@ const (
 )
 
 func mustBeInteger(what interface{}) *int {
-
-	if isJSONNumber(what) {
-
-		number := what.(json.Number)
-
-		isInt := checkJSONInteger(number)
-
-		if isInt {
-
-			int64Value, err := number.Int64()
-			if err != nil {
-				return nil
+	switch v := what.(type) {
+	case json.Number:
+		if checkJSONInteger(v) {
+			int64Value, err := v.Int64()
+			if err == nil {
+				int32Value := int(int64Value)
+				return &int32Value
 			}
-
-			int32Value := int(int64Value)
-			return &int32Value
 		}
-
+	case int:
+		val := int(v)
+		return &val
+	case int8:
+		val := int(v)
+		return &val
+	case int16:
+		val := int(v)
+		return &val
+	case int32:
+		val := int(v)
+		return &val
+	case int64:
+		val := int(v)
+		return &val
+	case uint:
+		val := int(v)
+		return &val
+	case uint8:
+		val := int(v)
+		return &val
+	case uint16:
+		val := int(v)
+		return &val
+	case uint32:
+		val := int(v)
+		return &val
+	case uint64:
+		val := int(v)
+		return &val
+	case float64:
+		if v == float64(int64(v)) {
+			val := int(v)
+			return &val
+		}
+	case float32:
+		if v == float32(int32(v)) {
+			val := int(v)
+			return &val
+		}
 	}
-
 	return nil
 }
 
 func mustBeNumber(what interface{}) *big.Rat {
-
-	if isJSONNumber(what) {
-		number := what.(json.Number)
-		float64Value, success := new(big.Rat).SetString(string(number))
+	switch v := what.(type) {
+	case json.Number:
+		float64Value, success := new(big.Rat).SetString(string(v))
 		if success {
 			return float64Value
 		}
+	case int:
+		return new(big.Rat).SetInt64(int64(v))
+	case int8:
+		return new(big.Rat).SetInt64(int64(v))
+	case int16:
+		return new(big.Rat).SetInt64(int64(v))
+	case int32:
+		return new(big.Rat).SetInt64(int64(v))
+	case int64:
+		return new(big.Rat).SetInt64(int64(v))
+	case uint:
+		return new(big.Rat).SetUint64(uint64(v))
+	case uint8:
+		return new(big.Rat).SetUint64(uint64(v))
+	case uint16:
+		return new(big.Rat).SetUint64(uint64(v))
+	case uint32:
+		return new(big.Rat).SetUint64(uint64(v))
+	case uint64:
+		return new(big.Rat).SetUint64(uint64(v))
+	case float64:
+		return new(big.Rat).SetFloat64(v)
+	case float32:
+		return new(big.Rat).SetFloat64(float64(v))
 	}
-
 	return nil
-
 }
 
 func convertDocumentNode(val interface{}) interface{} {
