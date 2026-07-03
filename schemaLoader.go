@@ -66,7 +66,7 @@ func (sl *SchemaLoader) validateMetaschema(documentNode interface{}) error {
 	//Disable validation when loading the metaschema to prevent an infinite recursive loop
 	sl.Validate = false
 
-	metaSchema, err := sl.Compile(NewReferenceLoader(schema))
+	metaSchema, err := sl.Compile(&metaSchemaLoader{url: schema})
 
 	if err != nil {
 		return err

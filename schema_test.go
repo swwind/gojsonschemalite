@@ -26,12 +26,7 @@
 package gojsonschema
 
 import (
-	"bytes"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -84,7 +79,7 @@ const circularReference = `{
 }`
 
 func TestCircularReference(t *testing.T) {
-	loader := NewStringLoader(circularReference)
+	loader := NewBytesLoader([]byte(circularReference))
 	// call the target function
 	_, err := NewSchema(loader)
 	if err != nil {
@@ -113,28 +108,8 @@ const simpleSchema = `{
 }`
 
 func TestLoaders(t *testing.T) {
-	// setup reader loader
-	reader := bytes.NewBufferString(simpleSchema)
-	readerLoader, wrappedReader := NewReaderLoader(reader)
-
-	// drain reader
-	by, err := ioutil.ReadAll(wrappedReader)
-	assert.Nil(t, err)
-	assert.Equal(t, simpleSchema, string(by))
-
-	// setup writer loaders
-	writer := &bytes.Buffer{}
-	writerLoader, wrappedWriter := NewWriterLoader(writer)
-
-	// fill writer
-	n, err := io.WriteString(wrappedWriter, simpleSchema)
-	assert.Nil(t, err)
-	assert.Equal(t, n, len(simpleSchema))
-
 	loaders := []JSONLoader{
-		NewStringLoader(simpleSchema),
-		readerLoader,
-		writerLoader,
+		NewBytesLoader([]byte(simpleSchema)),
 	}
 
 	for _, l := range loaders {
@@ -155,28 +130,8 @@ const invalidPattern = `{
 }`
 
 func TestLoadersWithInvalidPattern(t *testing.T) {
-	// setup reader loader
-	reader := bytes.NewBufferString(invalidPattern)
-	readerLoader, wrappedReader := NewReaderLoader(reader)
-
-	// drain reader
-	by, err := ioutil.ReadAll(wrappedReader)
-	assert.Nil(t, err)
-	assert.Equal(t, invalidPattern, string(by))
-
-	// setup writer loaders
-	writer := &bytes.Buffer{}
-	writerLoader, wrappedWriter := NewWriterLoader(writer)
-
-	// fill writer
-	n, err := io.WriteString(wrappedWriter, invalidPattern)
-	assert.Nil(t, err)
-	assert.Equal(t, n, len(invalidPattern))
-
 	loaders := []JSONLoader{
-		NewStringLoader(invalidPattern),
-		readerLoader,
-		writerLoader,
+		NewBytesLoader([]byte(invalidPattern)),
 	}
 
 	for _, l := range loaders {
@@ -214,11 +169,11 @@ const refPropertySchema = `{
 }`
 
 func TestRefProperty(t *testing.T) {
-	schemaLoader := NewStringLoader(refPropertySchema)
-	documentLoader := NewStringLoader(`{
+	schemaLoader := NewBytesLoader([]byte(refPropertySchema))
+	documentLoader := NewBytesLoader([]byte(`{
 		"$ref" : { "$ref" : "hello.world" },
 		"const" : { "$ref" : "hello.world" }
-		}`)
+		}`))
 	// call the target function
 	s, err := NewSchema(schemaLoader)
 	if err != nil {
@@ -234,58 +189,6 @@ func TestRefProperty(t *testing.T) {
 		}
 		t.Errorf("Got invalid validation result.")
 	}
-}
-
-func TestFragmentLoader(t *testing.T) {
-	wd, err := os.Getwd()
-
-	if err != nil {
-		panic(err.Error())
-	}
-
-	fileName := filepath.Join(wd, "testdata", "extra", "fragment_schema.json")
-
-	schemaLoader := NewReferenceLoader("file://" + filepath.ToSlash(fileName) + "#/definitions/x")
-	schema, err := NewSchema(schemaLoader)
-
-	if err != nil {
-		t.Errorf("Encountered error while loading schema: %s", err.Error())
-	}
-
-	validDocument := NewStringLoader(`5`)
-	invalidDocument := NewStringLoader(`"a"`)
-
-	result, err := schema.Validate(validDocument)
-
-	if assert.Nil(t, err, "Unexpected error while validating document: %T", err) {
-		if !result.Valid() {
-			t.Errorf("Got invalid validation result.")
-		}
-	}
-
-	result, err = schema.Validate(invalidDocument)
-
-	if assert.Nil(t, err, "Unexpected error while validating document: %T", err) {
-		if len(result.Errors()) != 1 || result.Errors()[0].Type() != "invalid_type" {
-			t.Errorf("Got invalid validation result.")
-		}
-	}
-}
-
-func TestFileWithSpace(t *testing.T) {
-	wd, err := os.Getwd()
-
-	if err != nil {
-		panic(err.Error())
-	}
-
-	fileName := filepath.Join(wd, "testdata", "extra", "file with space.json")
-	loader := NewReferenceLoader("file://" + filepath.ToSlash(fileName))
-
-	json, err := loader.LoadJSON()
-
-	assert.Nil(t, err, "Unexpected error when trying to load a filepath containing a space")
-	assert.Equal(t, map[string]interface{}{"foo": true}, json, "Contents of the file do not match")
 }
 
 func TestAdditionalPropertiesErrorMessage(t *testing.T) {
@@ -350,8 +253,8 @@ const locationIndependentSchema = `{
 }`
 
 func TestLocationIndependentIdentifier(t *testing.T) {
-	schemaLoader := NewStringLoader(locationIndependentSchema)
-	documentLoader := NewStringLoader(`{}`)
+	schemaLoader := NewBytesLoader([]byte(locationIndependentSchema))
+	documentLoader := NewBytesLoader([]byte(`{}`))
 
 	s, err := NewSchema(schemaLoader)
 	if err != nil {
@@ -374,7 +277,7 @@ const incorrectRefSchema = `{
 
 func TestIncorrectRef(t *testing.T) {
 
-	schemaLoader := NewStringLoader(incorrectRefSchema)
+	schemaLoader := NewBytesLoader([]byte(incorrectRefSchema))
 	s, err := NewSchema(schemaLoader)
 
 	assert.Nil(t, s)

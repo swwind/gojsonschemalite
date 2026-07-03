@@ -103,14 +103,19 @@ func TestCustomFormat(t *testing.T) {
 		Add("ObjectChecker", objectChecker{}).
 		Add("StringChecker", stringChecker{})
 
-	sl := NewStringLoader(formatSchema)
-	validResult, err := Validate(sl, NewGoLoader(map[string]interface{}{
+	sl := NewBytesLoader([]byte(formatSchema))
+
+	validDoc, err := json.Marshal(map[string]interface{}{
 		"arr":  []string{"x", "y", "z"},
 		"bool": true,
 		"int":  "2", // format not defined for string
 		"name": "x",
 		"str":  "o",
-	}))
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	validResult, err := Validate(sl, NewBytesLoader(validDoc))
 	if err != nil {
 		t.Error(err)
 	}
@@ -121,13 +126,17 @@ func TestCustomFormat(t *testing.T) {
 		}
 	}
 
-	invalidResult, err := Validate(sl, NewGoLoader(map[string]interface{}{
+	invalidDoc, err := json.Marshal(map[string]interface{}{
 		"arr":  []string{"a", "b", "c"},
 		"bool": false,
 		"int":  1,
 		"name": "z",
 		"str":  "a",
-	}))
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	invalidResult, err := Validate(sl, NewBytesLoader(invalidDoc))
 	if err != nil {
 		t.Error(err)
 	}

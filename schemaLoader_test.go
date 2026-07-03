@@ -23,15 +23,15 @@ import (
 
 func TestSchemaLoaderWithReferenceToAddedSchema(t *testing.T) {
 	sl := NewSchemaLoader()
-	err := sl.AddSchemas(NewStringLoader(`{
+	err := sl.AddSchemas(NewBytesLoader([]byte(`{
 		"id" : "http://localhost:1234/test1.json",
 		"type" : "integer"
-		}`))
+		}`)))
 
 	assert.Nil(t, err)
-	schema, err := sl.Compile(NewReferenceLoader("http://localhost:1234/test1.json"))
+	schema, err := sl.Compile(NewBytesLoader([]byte(`{"$ref" : "http://localhost:1234/test1.json"}`)))
 	assert.Nil(t, err)
-	result, err := schema.Validate(NewStringLoader(`"hello"`))
+	result, err := schema.Validate(NewBytesLoader([]byte(`"hello"`)))
 	assert.Nil(t, err)
 	if len(result.Errors()) != 1 || result.Errors()[0].Type() != "invalid_type" {
 		t.Errorf("Expected invalid type erorr, instead got %v", result.Errors())
@@ -39,26 +39,26 @@ func TestSchemaLoaderWithReferenceToAddedSchema(t *testing.T) {
 }
 
 func TestCrossReference(t *testing.T) {
-	schema1 := NewStringLoader(`{
+	schema1 := NewBytesLoader([]byte(`{
 		"$ref" : "http://localhost:1234/test3.json",
 		"definitions" : {
 			"foo" : {
 				"type" : "integer"
 			}
 		}
-	}`)
-	schema2 := NewStringLoader(`{
+	}`))
+	schema2 := NewBytesLoader([]byte(`{
 		"$ref" : "http://localhost:1234/test2.json#/definitions/foo"
-	}`)
+	}`))
 
 	sl := NewSchemaLoader()
 	err := sl.AddSchema("http://localhost:1234/test2.json", schema1)
 	assert.Nil(t, err)
 	err = sl.AddSchema("http://localhost:1234/test3.json", schema2)
 	assert.Nil(t, err)
-	schema, err := sl.Compile(NewStringLoader(`{"$ref" : "http://localhost:1234/test2.json"}`))
+	schema, err := sl.Compile(NewBytesLoader([]byte(`{"$ref" : "http://localhost:1234/test2.json"}`)))
 	assert.Nil(t, err)
-	result, err := schema.Validate(NewStringLoader(`"hello"`))
+	result, err := schema.Validate(NewBytesLoader([]byte(`"hello"`)))
 	assert.Nil(t, err)
 	if len(result.Errors()) != 1 || result.Errors()[0].Type() != "invalid_type" {
 		t.Errorf("Expected invalid type erorr, instead got %v", result.Errors())
@@ -68,20 +68,20 @@ func TestCrossReference(t *testing.T) {
 // Multiple schemas identifying under the same $id should throw an error
 func TestDoubleIDReference(t *testing.T) {
 	sl := NewSchemaLoader()
-	err := sl.AddSchema("http://localhost:1234/test4.json", NewStringLoader("{}"))
+	err := sl.AddSchema("http://localhost:1234/test4.json", NewBytesLoader([]byte("{}")))
 	assert.Nil(t, err)
-	err = sl.AddSchemas(NewStringLoader(`{ "id" : "http://localhost:1234/test4.json"}`))
+	err = sl.AddSchemas(NewBytesLoader([]byte(`{ "id" : "http://localhost:1234/test4.json"}`)))
 	assert.NotNil(t, err)
 }
 
 func TestCustomMetaSchema(t *testing.T) {
 
-	loader := NewStringLoader(`{
+	loader := NewBytesLoader([]byte(`{
 		"id" : "http://localhost:1234/test5.json",
 		"properties" : {
 			"multipleOf" : { "not": {} }
 		}
-	}`)
+	}`))
 
 	// Test a custom metaschema in which we disallow the use of the keyword "multipleOf"
 	sl := NewSchemaLoader()
@@ -89,30 +89,30 @@ func TestCustomMetaSchema(t *testing.T) {
 
 	err := sl.AddSchemas(loader)
 	assert.Nil(t, err)
-	_, err = sl.Compile(NewStringLoader(`{
+	_, err = sl.Compile(NewBytesLoader([]byte(`{
 		"id" : "http://localhost:1234/test6.json",
 		"$schema" : "http://localhost:1234/test5.json",
 		"type" : "string"
-	}`))
+	}`)))
 	assert.Nil(t, err)
 
 	sl = NewSchemaLoader()
 	sl.Validate = true
 	err = sl.AddSchemas(loader)
 	assert.Nil(t, err)
-	_, err = sl.Compile(NewStringLoader(`{
+	_, err = sl.Compile(NewBytesLoader([]byte(`{
 		"id" : "http://localhost:1234/test7.json",
 		"$schema" : "http://localhost:1234/test5.json",
 		"multipleOf" : 5
-	}`))
+	}`)))
 	assert.NotNil(t, err)
 }
 
 func TestSchemaDetection(t *testing.T) {
-	loader := NewStringLoader(`{
+	loader := NewBytesLoader([]byte(`{
 		"$schema" : "http://json-schema.org/draft-04/schema#",
 		"exclusiveMinimum" : 5
-	}`)
+	}`))
 
 	// The schema should produce an error in draft-04 mode
 	_, err := NewSchema(loader)
@@ -129,7 +129,7 @@ const not_map_interface = "not map interface"
 
 func TestParseSchemaURL_NotMap(t *testing.T) {
 	//GIVEN
-	sl := NewGoLoader(not_map_interface)
+	sl := NewRawLoader(not_map_interface)
 	//WHEN
 	_, err := NewSchema(sl)
 	//THEN

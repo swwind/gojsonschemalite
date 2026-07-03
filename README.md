@@ -39,8 +39,8 @@ import (
 
 func main() {
 
-    schemaLoader := gojsonschema.NewReferenceLoader("file:///home/me/schema.json")
-    documentLoader := gojsonschema.NewReferenceLoader("file:///home/me/document.json")
+    schemaLoader := gojsonschema.NewBytesLoader([]byte(`{"type": "string"}`))
+    documentLoader := gojsonschema.NewBytesLoader([]byte(`"hello world"`))
 
     result, err := gojsonschema.Validate(schemaLoader, documentLoader)
     if err != nil {
@@ -62,32 +62,27 @@ func main() {
 
 #### Loaders
 
-There are various ways to load your JSON data.
-In order to load your schemas and documents,
-first declare an appropriate loader :
+There are two ways to load your JSON data. No file system or network access
+is ever performed by a loader; you must supply the JSON bytes or an
+already-unmarshaled value yourself.
 
-* Local file, using a reference :
-
-```go
-loader := gojsonschema.NewReferenceLoader("file:///home/me/schema.json")
-```
-
-References use the URI scheme, the prefix (file://) and a full path to the file are required.
-
-* JSON strings :
+* Raw JSON bytes, unmarshaled internally with `json.Unmarshal` semantics (using `json.Number` for numbers) :
 
 ```go
-loader := gojsonschema.NewStringLoader(`{"type": "string"}`)
+loader := gojsonschema.NewBytesLoader([]byte(`{"type": "string"}`))
 ```
 
-* Custom Go types :
+* An already-unmarshaled Go value (e.g. the result of your own `json.Decoder` with `UseNumber()`, or a `map[string]interface{}`/`[]interface{}` tree you built yourself) :
 
 ```go
 m := map[string]interface{}{"type": "string"}
-loader := gojsonschema.NewGoLoader(m)
+loader := gojsonschema.NewRawLoader(m)
 ```
 
-And
+Note that `NewRawLoader` does not marshal/unmarshal its input, so arbitrary Go
+structs or types like `[]string` won't be normalized into canonical JSON
+types (`[]interface{}`, `map[string]interface{}`, `json.Number`, ...). If you
+have a Go struct, marshal it yourself and use `NewBytesLoader` :
 
 ```go
 type Root struct {
@@ -105,7 +100,8 @@ data.Users = append(data.Users, User{"John"})
 data.Users = append(data.Users, User{"Sophia"})
 data.Users = append(data.Users, User{"Bill"})
 
-loader := gojsonschema.NewGoLoader(data)
+b, err := json.Marshal(data)
+loader := gojsonschema.NewBytesLoader(b)
 ```
 
 #### Validation
@@ -143,47 +139,47 @@ To check the result :
 ```
 
 
-## Loading local schemas
+## Loading external schemas
 
-By default `file` references to external schemas are loaded automatically via the file system. Remote `http(s)` references are not supported; a schema identified by a `http(s)://` URI must be registered up-front using a `SchemaLoader`.
+No schema is ever fetched automatically, whether from the file system or over the network. A schema identified by a `$id`/`id` or referenced by `$ref` must be registered up-front using a `SchemaLoader`.
 
 ```go
 	sl := gojsonschema.NewSchemaLoader()
-	loader1 := gojsonschema.NewStringLoader(`{ "type" : "string" }`)
+	loader1 := gojsonschema.NewBytesLoader([]byte(`{ "type" : "string" }`))
 	err := sl.AddSchema("http://some_host.com/string.json", loader1)
 ```
 
 Alternatively if your schema already has an `$id` you can use the `AddSchemas` function
 ```go
-	loader2 := gojsonschema.NewStringLoader(`{
+	loader2 := gojsonschema.NewBytesLoader([]byte(`{
 			"$id" : "http://some_host.com/maxlength.json",
 			"maxLength" : 5
-		}`)
+		}`))
 	err = sl.AddSchemas(loader2)
 ```
 
 The main schema should be passed to the `Compile` function. This main schema can then directly reference the added schemas without needing to download them.
 ```go
-	loader3 := gojsonschema.NewStringLoader(`{
+	loader3 := gojsonschema.NewBytesLoader([]byte(`{
 		"$id" : "http://some_host.com/main.json",
 		"allOf" : [
 			{ "$ref" : "http://some_host.com/string.json" },
 			{ "$ref" : "http://some_host.com/maxlength.json" }
 		]
-	}`)
+	}`))
 
 	schema, err := sl.Compile(loader3)
 
-	documentLoader := gojsonschema.NewStringLoader(`"hello world"`)
+	documentLoader := gojsonschema.NewBytesLoader([]byte(`"hello world"`))
 
 	result, err := schema.Validate(documentLoader)
 ```
 
-It's also possible to pass a `ReferenceLoader` to the `Compile` function that references a loaded schema.
+It's also possible to pass a loader to `Compile` that only contains a `$ref` to a previously registered schema.
 
 ```go
 err = sl.AddSchemas(loader3)
-schema, err := sl.Compile(gojsonschema.NewReferenceLoader("http://some_host.com/main.json"))
+schema, err := sl.Compile(gojsonschema.NewBytesLoader([]byte(`{ "$ref" : "http://some_host.com/main.json" }`)))
 ``` 
 
 Schemas added by `AddSchema` and `AddSchemas` are only validated when the entire schema is compiled, unless meta-schema validation is used.
@@ -209,11 +205,11 @@ The following example will produce an error as `multipleOf` must be a number. If
 ```go
 sl := gojsonschema.NewSchemaLoader()
 sl.Validate = true
-err := sl.AddSchemas(gojsonschema.NewStringLoader(`{
+err := sl.AddSchemas(gojsonschema.NewBytesLoader([]byte(`{
      "$id" : "http://some_host.com/invalid.json",
     "$schema": "http://json-schema.org/draft-07/schema#",
     "multipleOf" : true
-}`))
+}`)))
  ```
 ``` 
  ```
