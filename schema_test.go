@@ -327,22 +327,22 @@ func TestAdditionalPropertiesErrorMessage(t *testing.T) {
 const locationIndependentSchema = `{
   "definitions": {
     "A": {
-      "$id": "#foo"
+      "id": "#foo"
     },
     "B": {
-      "$id": "http://example.com/other.json",
+      "id": "http://example.com/other.json",
       "definitions": {
         "X": {
-          "$id": "#bar",
-          "allOf": [false]
+          "id": "#bar",
+          "allOf": [{"not": {}}]
         },
         "Y": {
-          "$id": "t/inner.json"
+          "id": "t/inner.json"
         }
       }
     },
     "C": {
-			"$id" : "#frag",
+			"id" : "#frag",
       "$ref": "http://example.com/other.json#bar"
     }
   },
@@ -363,8 +363,8 @@ func TestLocationIndependentIdentifier(t *testing.T) {
 		t.Errorf("Got error: %s", err.Error())
 	}
 
-	if len(result.Errors()) != 2 || result.Errors()[0].Type() != "false" || result.Errors()[1].Type() != "number_all_of" {
-		t.Errorf("Got invalid validation result.")
+	if len(result.Errors()) != 2 || result.Errors()[0].Type() != "number_not" || result.Errors()[1].Type() != "number_all_of" {
+		t.Errorf("Got invalid validation result: %v", result.Errors())
 	}
 }
 

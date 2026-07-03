@@ -24,7 +24,7 @@ import (
 func TestSchemaLoaderWithReferenceToAddedSchema(t *testing.T) {
 	sl := NewSchemaLoader()
 	err := sl.AddSchemas(NewStringLoader(`{
-		"$id" : "http://localhost:1234/test1.json",
+		"id" : "http://localhost:1234/test1.json",
 		"type" : "integer"
 		}`))
 
@@ -70,16 +70,16 @@ func TestDoubleIDReference(t *testing.T) {
 	sl := NewSchemaLoader()
 	err := sl.AddSchema("http://localhost:1234/test4.json", NewStringLoader("{}"))
 	assert.Nil(t, err)
-	err = sl.AddSchemas(NewStringLoader(`{ "$id" : "http://localhost:1234/test4.json"}`))
+	err = sl.AddSchemas(NewStringLoader(`{ "id" : "http://localhost:1234/test4.json"}`))
 	assert.NotNil(t, err)
 }
 
 func TestCustomMetaSchema(t *testing.T) {
 
 	loader := NewStringLoader(`{
-		"$id" : "http://localhost:1234/test5.json",
+		"id" : "http://localhost:1234/test5.json",
 		"properties" : {
-			"multipleOf" : false
+			"multipleOf" : { "not": {} }
 		}
 	}`)
 
@@ -90,7 +90,7 @@ func TestCustomMetaSchema(t *testing.T) {
 	err := sl.AddSchemas(loader)
 	assert.Nil(t, err)
 	_, err = sl.Compile(NewStringLoader(`{
-		"$id" : "http://localhost:1234/test6.json",
+		"id" : "http://localhost:1234/test6.json",
 		"$schema" : "http://localhost:1234/test5.json",
 		"type" : "string"
 	}`))
@@ -101,7 +101,7 @@ func TestCustomMetaSchema(t *testing.T) {
 	err = sl.AddSchemas(loader)
 	assert.Nil(t, err)
 	_, err = sl.Compile(NewStringLoader(`{
-		"$id" : "http://localhost:1234/test7.json",
+		"id" : "http://localhost:1234/test7.json",
 		"$schema" : "http://localhost:1234/test5.json",
 		"multipleOf" : 5
 	}`))
@@ -118,49 +118,11 @@ func TestSchemaDetection(t *testing.T) {
 	_, err := NewSchema(loader)
 	assert.NotNil(t, err)
 
-	// With schema detection disabled the schema should not produce an error in hybrid mode
 	sl := NewSchemaLoader()
 	sl.AutoDetect = false
 
 	_, err = sl.Compile(loader)
-	assert.Nil(t, err)
-}
-
-func TestDraftCrossReferencing(t *testing.T) {
-
-	// Tests the following cross referencing with any combination
-	// of autodetection and preset draft version.
-
-	loader1 := NewStringLoader(`{
-		"$schema" : "http://json-schema.org/draft-04/schema#",
-		"id" : "http://localhost:1234/file.json",
-		"$id" : "http://localhost:1234/file.json",
-		"exclusiveMinimum" : 5
-	}`)
-	loader2 := NewStringLoader(`{
-		"$schema" : "http://json-schema.org/draft-07/schema#",
-		"id" : "http://localhost:1234/main.json",
-		"$id" : "http://localhost:1234/main.json",
-		"$ref" : "file.json"
-	}`)
-
-	for _, b := range []bool{true, false} {
-		for _, draft := range []Draft{Draft4, Draft6, Draft7} {
-			sl := NewSchemaLoader()
-			sl.Draft = draft
-			sl.AutoDetect = b
-
-			err := sl.AddSchemas(loader1)
-			assert.Nil(t, err)
-			_, err = sl.Compile(loader2)
-
-			// It will always fail with autodetection on as "exclusiveMinimum" : 5
-			// is only valid since draft-06. With autodetection off it will pass if
-			// draft-06 or newer is used
-
-			assert.Equal(t, err == nil, !b && draft >= Draft6)
-		}
-	}
+	assert.NotNil(t, err)
 }
 
 const not_map_interface = "not map interface"

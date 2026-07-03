@@ -86,9 +86,6 @@ type subSchema struct {
 
 	property string
 
-	// Quick pass/fail for boolean schemas
-	pass *bool
-
 	// Types associated with the subSchema
 	types jsonSchemaType
 
@@ -124,18 +121,15 @@ type subSchema struct {
 	dependencies         map[string]interface{}
 	additionalProperties interface{}
 	patternProperties    map[string]*subSchema
-	propertyNames        *subSchema
 
 	// validation : array
 	minItems    *int
 	maxItems    *int
 	uniqueItems bool
-	contains    *subSchema
 
 	additionalItems interface{}
 
 	// validation : all
-	_const *string //const is a golang keyword
 	enum   []string
 
 	// validation : subSchema
@@ -143,7 +137,4 @@ type subSchema struct {
 	anyOf []*subSchema
 	allOf []*subSchema
 	not   *subSchema
-	_if   *subSchema // if/else are golang keywords
-	_then *subSchema
-	_else *subSchema
 }

@@ -75,18 +75,6 @@ func (v *subSchema) validateRecursive(currentSubSchema *subSchema, currentNode i
 		internalLog(" %v", currentNode)
 	}
 
-	// Handle true/false schema as early as possible as all other fields will be nil
-	if currentSubSchema.pass != nil {
-		if !*currentSubSchema.pass {
-			result.addInternalError(
-				new(FalseError),
-				context,
-				currentNode,
-				ErrorDetails{},
-			)
-		}
-		return
-	}
 
 	// Handle referenced schemas, returns directly when a $ref is found
 	if currentSubSchema.refSchema != nil {
@@ -376,25 +364,6 @@ func (v *subSchema) validateSchema(currentSubSchema *subSchema, currentNode inte
 			}
 		}
 	}
-
-	if currentSubSchema._if != nil {
-		validationResultIf := currentSubSchema._if.subValidateWithContext(currentNode, context)
-		if currentSubSchema._then != nil && validationResultIf.Valid() {
-			validationResultThen := currentSubSchema._then.subValidateWithContext(currentNode, context)
-			if !validationResultThen.Valid() {
-				result.addInternalError(new(ConditionThenError), context, currentNode, ErrorDetails{})
-				result.mergeErrors(validationResultThen)
-			}
-		}
-		if currentSubSchema._else != nil && !validationResultIf.Valid() {
-			validationResultElse := currentSubSchema._else.subValidateWithContext(currentNode, context)
-			if !validationResultElse.Valid() {
-				result.addInternalError(new(ConditionElseError), context, currentNode, ErrorDetails{})
-				result.mergeErrors(validationResultElse)
-			}
-		}
-	}
-
 	result.incrementScore()
 }
 
@@ -403,23 +372,6 @@ func (v *subSchema) validateCommon(currentSubSchema *subSchema, value interface{
 	if internalLogEnabled {
 		internalLog("validateCommon %s", context.String())
 		internalLog(" %v", value)
-	}
-
-	// const:
-	if currentSubSchema._const != nil {
-		vString, err := marshalWithoutNumber(value)
-		if err != nil {
-			result.addInternalError(new(InternalError), context, value, ErrorDetails{"error": err})
-		}
-		if *vString != *currentSubSchema._const {
-			result.addInternalError(new(ConstError),
-				context,
-				value,
-				ErrorDetails{
-					"allowed": *currentSubSchema._const,
-				},
-			)
-		}
 	}
 
 	// enum:
@@ -546,37 +498,7 @@ func (v *subSchema) validateArray(currentSubSchema *subSchema, value []interface
 		}
 	}
 
-	// contains:
 
-	if currentSubSchema.contains != nil {
-		validatedOne := false
-		var bestValidationResult *Result
-
-		for i, v := range value {
-			subContext := NewJsonContext(strconv.Itoa(i), context)
-
-			validationResult := currentSubSchema.contains.subValidateWithContext(v, subContext)
-			if validationResult.Valid() {
-				validatedOne = true
-				break
-			} else {
-				if bestValidationResult == nil || validationResult.score > bestValidationResult.score {
-					bestValidationResult = validationResult
-				}
-			}
-		}
-		if !validatedOne {
-			result.addInternalError(
-				new(ArrayContainsError),
-				context,
-				value,
-				ErrorDetails{},
-			)
-			if bestValidationResult != nil {
-				result.mergeErrors(bestValidationResult)
-			}
-		}
-	}
 
 	result.incrementScore()
 }
@@ -660,20 +582,6 @@ func (v *subSchema) validateObject(currentSubSchema *subSchema, value map[string
 		}
 	}
 
-	// propertyNames:
-	if currentSubSchema.propertyNames != nil {
-		for pk := range value {
-			validationResult := currentSubSchema.propertyNames.subValidateWithContext(pk, context)
-			if !validationResult.Valid() {
-				result.addInternalError(new(InvalidPropertyNameError),
-					context,
-					value, ErrorDetails{
-						"property": pk,
-					})
-				result.mergeErrors(validationResult)
-			}
-		}
-	}
 
 	result.incrementScore()
 }

@@ -38,7 +38,7 @@ func NewSchemaLoader() *SchemaLoader {
 		},
 		AutoDetect: true,
 		Validate:   false,
-		Draft:      Hybrid,
+		Draft:      Draft4,
 	}
 	ps.pool.autoDetect = &ps.AutoDetect
 
@@ -60,9 +60,6 @@ func (sl *SchemaLoader) validateMetaschema(documentNode interface{}) error {
 
 	// If no explicit "$schema" is used, use the default metaschema associated with the draft used
 	if schema == "" {
-		if sl.Draft == Hybrid {
-			return nil
-		}
 		schema = drafts.GetSchemaURL(sl.Draft)
 	}
 
