@@ -2,12 +2,10 @@ package gojsonschema
 
 import (
 	"fmt"
-	"regexp"
+	"strings"
 )
 
 var (
-	templateRegex = regexp.MustCompile(`\{\{\.([a-zA-Z0-9_]+)\}\}`)
-
 	// ErrorTemplateFuncs is a stub kept for compatibility.
 	ErrorTemplateFuncs map[string]interface{}
 )
@@ -284,12 +282,8 @@ func newError(err ResultError, context *JsonContext, value interface{}, locale l
 // format and converts it to a string with replacements. The fields come
 // from the ErrorDetails struct and vary for each type of error.
 func formatErrorDescription(s string, details ErrorDetails) string {
-	return templateRegex.ReplaceAllStringFunc(s, func(match string) string {
-		// Extract key name between {{. and }}
-		key := match[3 : len(match)-2]
-		if val, ok := details[key]; ok {
-			return fmt.Sprintf("%v", val)
-		}
-		return match
-	})
+	for k, v := range details {
+		s = strings.ReplaceAll(s, "{{."+k+"}}", fmt.Sprintf("%v", v))
+	}
+	return s
 }
