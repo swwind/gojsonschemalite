@@ -20,7 +20,7 @@
 // repository-desc  An implementation of JSON Schema, based on IETF's draft v4 - Go language.
 //
 // description		Different strategies to load JSON files.
-// 					Includes References (file and HTTP), JSON strings and Go types.
+// 					Includes References (file only), JSON strings and Go types.
 //
 // created          01-02-2015
 
@@ -32,8 +32,6 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -43,6 +41,18 @@ import (
 )
 
 var osFS = osFileSystem(os.Open)
+
+// FileSystem abstracts file access so that JSON schemas can be loaded from
+// custom sources (e.g. an embedded or in-memory filesystem).
+type FileSystem interface {
+	Open(name string) (File, error)
+}
+
+// File is the interface returned by FileSystem.Open.
+type File interface {
+	io.Reader
+	io.Closer
+}
 
 // JSONLoader defines the JSON loader interface
 type JSONLoader interface {
@@ -62,9 +72,9 @@ type JSONLoaderFactory interface {
 type DefaultJSONLoaderFactory struct {
 }
 
-// FileSystemJSONLoaderFactory is a JSON loader factory that uses http.FileSystem
+// FileSystemJSONLoaderFactory is a JSON loader factory that uses a FileSystem
 type FileSystemJSONLoaderFactory struct {
-	fs http.FileSystem
+	fs FileSystem
 }
 
 // New creates a new JSON loader for the given source
@@ -83,19 +93,19 @@ func (f FileSystemJSONLoaderFactory) New(source string) JSONLoader {
 	}
 }
 
-// osFileSystem is a functional wrapper for os.Open that implements http.FileSystem.
+// osFileSystem is a functional wrapper for os.Open that implements FileSystem.
 type osFileSystem func(string) (*os.File, error)
 
 // Opens a file with the given name
-func (o osFileSystem) Open(name string) (http.File, error) {
+func (o osFileSystem) Open(name string) (File, error) {
 	return o(name)
 }
 
 // JSON Reference loader
-// references are used to load JSONs from files and HTTP
+// references are used to load JSONs from files
 
 type jsonReferenceLoader struct {
-	fs     http.FileSystem
+	fs     FileSystem
 	source string
 }
 
@@ -122,7 +132,7 @@ func NewReferenceLoader(source string) JSONLoader {
 }
 
 // NewReferenceLoaderFileSystem returns a JSON reference loader using the given source and file system.
-func NewReferenceLoaderFileSystem(source string, fs http.FileSystem) JSONLoader {
+func NewReferenceLoaderFileSystem(source string, fs FileSystem) JSONLoader {
 	return &jsonReferenceLoader{
 		fs:     fs,
 		source: source,
@@ -146,7 +156,7 @@ func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
 	if reference.HasFileScheme {
 
 		filename := strings.TrimPrefix(refToURL.String(), "file://")
-		filename, err = url.QueryUnescape(filename)
+		filename, err = unescapePath(filename)
 
 		if err != nil {
 			return nil, err
@@ -166,7 +176,7 @@ func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
 
 	} else {
 
-		document, err = l.loadFromHTTP(refToURL.String())
+		document, err = l.loadCachedMetaSchema(refToURL.String())
 		if err != nil {
 			return nil, err
 		}
@@ -177,30 +187,49 @@ func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
 
 }
 
-func (l *jsonReferenceLoader) loadFromHTTP(address string) (interface{}, error) {
+// loadCachedMetaSchema returns the cached draft-04 metaschema for the given
+// reference. Remote (HTTP/HTTPS) schema references are not supported.
+func (l *jsonReferenceLoader) loadCachedMetaSchema(address string) (interface{}, error) {
 
-	// return a cached version of the draft-04 metaschema
-	// for performance and to allow for easier offline use
 	if metaSchema := getMetaSchema(address); metaSchema != "" {
 		return decodeJSONUsingNumber(strings.NewReader(metaSchema))
 	}
 
-	resp, err := http.Get(address)
-	if err != nil {
-		return nil, err
-	}
+	return nil, errors.New(formatErrorDescription(Locale.RemoteNotSupported(), ErrorDetails{"reference": address}))
+}
 
-	// must return HTTP Status 200 OK
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New(formatErrorDescription(Locale.HttpBadStatus(), ErrorDetails{"status": resp.Status}))
+// unescapePath decodes percent-encoded octets (e.g. %20) in a file path.
+func unescapePath(s string) (string, error) {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] != '%' {
+			b.WriteByte(s[i])
+			continue
+		}
+		if i+2 >= len(s) {
+			return "", errors.New("invalid URL escape in path")
+		}
+		hi, okHi := unhex(s[i+1])
+		lo, okLo := unhex(s[i+2])
+		if !okHi || !okLo {
+			return "", errors.New("invalid URL escape in path")
+		}
+		b.WriteByte(hi<<4 | lo)
+		i += 2
 	}
+	return b.String(), nil
+}
 
-	bodyBuff, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+func unhex(c byte) (byte, bool) {
+	switch {
+	case '0' <= c && c <= '9':
+		return c - '0', true
+	case 'a' <= c && c <= 'f':
+		return c - 'a' + 10, true
+	case 'A' <= c && c <= 'F':
+		return c - 'A' + 10, true
 	}
-
-	return decodeJSONUsingNumber(bytes.NewReader(bodyBuff))
+	return 0, false
 }
 
 func (l *jsonReferenceLoader) loadFromFile(path string) (interface{}, error) {

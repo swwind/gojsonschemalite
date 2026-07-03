@@ -1,8 +1,6 @@
-package: github.com/xeipuuv/gojsonschema
+package: github.com/swwind/gojsonschemalite
 license: Apache 2.0
 import:
-- package: github.com/xeipuuv/gojsonschema
-
 - package: github.com/xeipuuv/gojsonpointer
 
 - package: github.com/xeipuuv/gojsonreference

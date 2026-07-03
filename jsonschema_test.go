@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -123,14 +122,6 @@ func TestSuite(t *testing.T) {
 		panic(err.Error())
 	}
 	wd = filepath.Join(wd, "testdata")
-
-	go func() {
-		err := http.ListenAndServe(":1234", http.FileServer(http.Dir(filepath.Join(wd, "remotes"))))
-		if err != nil {
-
-			panic(err.Error())
-		}
-	}()
 
 	err = filepath.Walk(wd, func(path string, fileInfo os.FileInfo, err error) error {
 		if fileInfo.IsDir() && path != wd && !testDirectories.MatchString(fileInfo.Name()) {

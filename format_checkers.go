@@ -1,8 +1,7 @@
 package gojsonschema
 
 import (
-	"net"
-	"net/mail"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
@@ -141,6 +140,10 @@ var (
 
 	rxRelJSONPointer = regexp.MustCompile("^(?:0|[1-9][0-9]*)(?:#|(?:/(?:[^~/]|~0|~1)*)*)$")
 
+	// rxEmail is a practical (non-exhaustive) approximation of RFC 5322 that
+	// mirrors the WHATWG HTML living standard's email validation regex.
+	rxEmail = regexp.MustCompile(`^[a-zA-Z0-9.!#$%&'*+/=?^_` + "`" + `{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$`)
+
 	lock = new(sync.RWMutex)
 )
 
@@ -194,8 +197,7 @@ func (f EmailFormatChecker) IsFormat(input interface{}) bool {
 		return true
 	}
 
-	_, err := mail.ParseAddress(asString)
-	return err == nil
+	return rxEmail.MatchString(asString)
 }
 
 // IsFormat checks if input is a correctly formatted IPv4-address
@@ -205,9 +207,8 @@ func (f IPV4FormatChecker) IsFormat(input interface{}) bool {
 		return true
 	}
 
-	// Credit: https://github.com/asaskevich/govalidator
-	ip := net.ParseIP(asString)
-	return ip != nil && strings.Contains(asString, ".")
+	addr, err := netip.ParseAddr(asString)
+	return err == nil && addr.Is4()
 }
 
 // IsFormat checks if input is a correctly formatted IPv6=address
@@ -217,9 +218,8 @@ func (f IPV6FormatChecker) IsFormat(input interface{}) bool {
 		return true
 	}
 
-	// Credit: https://github.com/asaskevich/govalidator
-	ip := net.ParseIP(asString)
-	return ip != nil && strings.Contains(asString, ":")
+	addr, err := netip.ParseAddr(asString)
+	return err == nil && addr.Is6()
 }
 
 // IsFormat checks if input is a correctly formatted  date/time per RFC3339 5.6

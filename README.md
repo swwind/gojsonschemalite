@@ -1,6 +1,5 @@
-[![GoDoc](https://godoc.org/github.com/xeipuuv/gojsonschema?status.svg)](https://godoc.org/github.com/xeipuuv/gojsonschema)
-[![Build Status](https://travis-ci.org/xeipuuv/gojsonschema.svg)](https://travis-ci.org/xeipuuv/gojsonschema)
-[![Go Report Card](https://goreportcard.com/badge/github.com/xeipuuv/gojsonschema)](https://goreportcard.com/report/github.com/xeipuuv/gojsonschema)
+[![GoDoc](https://godoc.org/github.com/swwind/gojsonschemalite?status.svg)](https://godoc.org/github.com/swwind/gojsonschemalite)
+[![Go Report Card](https://goreportcard.com/badge/github.com/swwind/gojsonschemalite)](https://goreportcard.com/report/github.com/swwind/gojsonschemalite)
 
 # gojsonschema
 
@@ -17,7 +16,7 @@ References :
 ## Installation
 
 ```
-go get github.com/xeipuuv/gojsonschema
+go get github.com/swwind/gojsonschemalite
 ```
 
 Dependencies :
@@ -35,7 +34,7 @@ package main
 
 import (
     "fmt"
-    "github.com/xeipuuv/gojsonschema"
+    "github.com/swwind/gojsonschemalite"
 )
 
 func main() {
@@ -66,12 +65,6 @@ func main() {
 There are various ways to load your JSON data.
 In order to load your schemas and documents,
 first declare an appropriate loader :
-
-* Web / HTTP, using a reference :
-
-```go
-loader := gojsonschema.NewReferenceLoader("http://www.some_host.com/schema.json")
-```
 
 * Local file, using a reference :
 
@@ -152,7 +145,7 @@ To check the result :
 
 ## Loading local schemas
 
-By default `file` and `http(s)` references to external schemas are loaded automatically via the file system or via http(s). An external schema can also be loaded using a `SchemaLoader`.
+By default `file` references to external schemas are loaded automatically via the file system. Remote `http(s)` references are not supported; a schema identified by a `http(s)://` URI must be registered up-front using a `SchemaLoader`.
 
 ```go
 	sl := gojsonschema.NewSchemaLoader()
@@ -327,12 +320,12 @@ Not all formats defined in draft-07 are available. Implemented formats are:
 * `time`
 * `date-time`
 * `hostname`. Subdomains that start with a number are also supported, but this means that it doesn't strictly follow [RFC1034](http://tools.ietf.org/html/rfc1034#section-3.5) and has the implication that ipv4 addresses are also recognized as valid hostnames.
-* `email`. Go's email parser deviates slightly from [RFC5322](https://tools.ietf.org/html/rfc5322). Includes unicode support.
+* `email`. Validated with a regular expression rather than Go's `net/mail` package, so this package has no dependency on `net/*`. Does not support unicode local parts.
 * `idn-email`. Same caveat as `email`.
 * `ipv4`
 * `ipv6`
-* `uri`. Includes unicode support.
-* `uri-reference`. Includes unicode support.
+* `uri`
+* `uri-reference`
 * `iri`
 * `iri-reference`
 * `uri-template`
@@ -341,10 +334,9 @@ Not all formats defined in draft-07 are available. Implemented formats are:
 * `json-pointer`
 * `relative-json-pointer`
 
-`email`, `uri` and `uri-reference` use the same validation code as their unicode counterparts `idn-email`, `iri` and `iri-reference`. If you rely on unicode support you should use the specific 
-unicode enabled formats for the sake of interoperability as other implementations might not support unicode in the regular formats.
+`email`, `uri` and `uri-reference` use the same validation code as their unicode counterparts `idn-email`, `iri` and `iri-reference`.
 
-The validation code for `uri`, `idn-email` and their relatives use mostly standard library code.
+`ipv4` and `ipv6` are validated with `net/netip`, and `uri`/`uri-reference`/`uri-template` with `net/url`; neither of those standard library packages pulls in `net`'s cgo-based DNS resolver, so binaries using this package remain statically linkable. `email`/`idn-email` intentionally avoid `net/mail`, since that package imports `net` internally (to validate domain-literal addresses) and would otherwise reintroduce that dynamic-linking dependency.
 
 For repetitive or more complex formats, you can create custom format checkers and add them to gojsonschema like this:
 

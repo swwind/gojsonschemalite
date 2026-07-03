@@ -160,8 +160,9 @@ type (
 		// Duplicated returns a format-string to format an error where types are duplicated
 		Duplicated() string
 
-		// HttpBadStatus returns a format-string for errors when loading a schema using HTTP
-		HttpBadStatus() string
+		// RemoteNotSupported returns a format-string for errors when a schema reference
+		// cannot be resolved locally (remote HTTP/HTTPS references are not supported)
+		RemoteNotSupported() string
 
 		// ParseError returns a format-string for JSON parsing errors
 		ParseError() string
@@ -391,9 +392,10 @@ func (l DefaultLocale) Duplicated() string {
 	return `{{.type}} type is duplicated`
 }
 
-// HttpBadStatus returns a format-string for errors when loading a schema using HTTP
-func (l DefaultLocale) HttpBadStatus() string {
-	return `Could not read schema from HTTP, response status is {{.status}}`
+// RemoteNotSupported returns a format-string for errors when a schema reference
+// cannot be resolved locally (remote HTTP/HTTPS references are not supported)
+func (l DefaultLocale) RemoteNotSupported() string {
+	return `Remote reference {{.reference}} could not be resolved: remote (HTTP/HTTPS) schema references are not supported`
 }
 
 // ErrorFormat returns a format string for errors
