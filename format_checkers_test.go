@@ -104,8 +104,8 @@ func TestCustomFormat(t *testing.T) {
 		Add("StringChecker", stringChecker{})
 
 	sl := NewBytesLoader([]byte(formatSchema))
-	validResult, err := Validate(sl, NewGoLoader(map[string]interface{}{
-		"arr":  []string{"x", "y", "z"},
+	validResult, err := Validate(sl, NewRawLoader(map[string]interface{}{
+		"arr":  []interface{}{"x", "y", "z"},
 		"bool": true,
 		"int":  "2", // format not defined for string
 		"name": "x",
@@ -121,10 +121,10 @@ func TestCustomFormat(t *testing.T) {
 		}
 	}
 
-	invalidResult, err := Validate(sl, NewGoLoader(map[string]interface{}{
-		"arr":  []string{"a", "b", "c"},
+	invalidResult, err := Validate(sl, NewRawLoader(map[string]interface{}{
+		"arr":  []interface{}{"a", "b", "c"},
 		"bool": false,
-		"int":  1,
+		"int":  json.Number("1"),
 		"name": "z",
 		"str":  "a",
 	}))

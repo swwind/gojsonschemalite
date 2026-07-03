@@ -9,7 +9,7 @@
 * **No File or HTTP Fetching**: Removed all file/URL loading mechanisms (e.g., `file://`, `http://`).
 * **Minimal Loaders**: Supports exactly two loaders:
   * `NewBytesLoader([]byte)` for raw JSON inputs.
-  * `NewGoLoader(interface{})` for pre-unmarshaled Go structs, maps, or slices.
+  * `NewRawLoader(interface{})` for pre-unmarshaled Go structures, maps, or slices.
 * **Zero Runtime Dependencies**: Stripped out external dependencies like `gojsonreference` and `gojsonpointer`. The library has zero third-party dependencies in production.
 
 ## Installation
@@ -76,5 +76,5 @@ loader := gojsonschema.NewBytesLoader([]byte(`{"type": "string"}`))
 * **Custom Go types / objects**:
 ```go
 data := map[string]interface{}{"name": "Alice"}
-loader := gojsonschema.NewGoLoader(data)
+loader := gojsonschema.NewRawLoader(data)
 ```

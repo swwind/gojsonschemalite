@@ -51,26 +51,22 @@ func (l *jsonBytesLoader) LoadJSON() (interface{}, error) {
 	return decodeJSONUsingNumber(bytes.NewReader(l.JsonSource().([]byte)))
 }
 
-// JSON Go (types) loader
-type jsonGoLoader struct {
+// JSON Raw (types) loader
+type jsonRawLoader struct {
 	source interface{}
 }
 
-func (l *jsonGoLoader) JsonSource() interface{} {
+func (l *jsonRawLoader) JsonSource() interface{} {
 	return l.source
 }
 
-// NewGoLoader creates a new JSONLoader from a given Go struct
-func NewGoLoader(source interface{}) JSONLoader {
-	return &jsonGoLoader{source: source}
+// NewRawLoader creates a new JSONLoader from a given pre-unmarshaled Go object
+func NewRawLoader(source interface{}) JSONLoader {
+	return &jsonRawLoader{source: source}
 }
 
-func (l *jsonGoLoader) LoadJSON() (interface{}, error) {
-	jsonBytes, err := json.Marshal(l.JsonSource())
-	if err != nil {
-		return nil, err
-	}
-	return decodeJSONUsingNumber(bytes.NewReader(jsonBytes))
+func (l *jsonRawLoader) LoadJSON() (interface{}, error) {
+	return l.source, nil
 }
 
 func decodeJSONUsingNumber(r io.Reader) (interface{}, error) {

@@ -76,7 +76,7 @@ func executeTests(t *testing.T, path string) error {
 			continue
 		}
 
-		testSchemaLoader := NewGoLoader(test.Schema)
+		testSchemaLoader := NewRawLoader(test.Schema)
 		sl := NewSchemaLoader()
 		sl.Draft = draft
 		sl.Validate = true
@@ -87,7 +87,7 @@ func executeTests(t *testing.T, path string) error {
 		}
 
 		for _, testCase := range test.Tests {
-			testDataLoader := NewGoLoader(testCase.Data)
+			testDataLoader := NewRawLoader(testCase.Data)
 			result, err := testSchema.Validate(testDataLoader)
 
 			if err != nil {

@@ -36,7 +36,7 @@ const not_map_interface = "not map interface"
 
 func TestParseSchemaURL_NotMap(t *testing.T) {
 	//GIVEN
-	sl := NewGoLoader(not_map_interface)
+	sl := NewRawLoader(not_map_interface)
 	//WHEN
 	_, err := NewSchema(sl)
 	//THEN
