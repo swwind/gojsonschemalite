@@ -59,3 +59,117 @@ func TestAdditionalPropertiesErrorMessage(t *testing.T) {
 		t.Fatalf("Expected '%s' but got '%s'", expected, actual)
 	}
 }
+
+func TestInternalRefAndCircularRef(t *testing.T) {
+	schema := `{
+		"type": "object",
+		"properties": {
+			"person": {
+				"$ref": "#/definitions/person"
+			}
+		},
+		"definitions": {
+			"person": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"},
+					"spouse": {"$ref": "#/definitions/person"}
+				},
+				"required": ["name"]
+			}
+		}
+	}`
+
+	s, err := NewSchema(NewBytesLoader([]byte(schema)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Valid case
+	validData := `{
+		"person": {
+			"name": "Alice",
+			"spouse": {
+				"name": "Bob"
+			}
+		}
+	}`
+	res, err := s.Validate(NewBytesLoader([]byte(validData)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Valid() {
+		t.Fatalf("Expected valid, got errors: %v", res.Errors())
+	}
+
+	// Invalid case
+	invalidData := `{
+		"person": {
+			"name": "Alice",
+			"spouse": {
+				"spouse": {}
+			}
+		}
+	}`
+	res, err = s.Validate(NewBytesLoader([]byte(invalidData)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Valid() {
+		t.Fatal("Expected invalid")
+	}
+}
+
+func TestIDBasedRef(t *testing.T) {
+	schema := `{
+		"type": "object",
+		"properties": {
+			"person": {
+				"$ref": "#personRef"
+			}
+		},
+		"definitions": {
+			"person": {
+				"id": "#personRef",
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"}
+				},
+				"required": ["name"]
+			}
+		}
+	}`
+
+	s, err := NewSchema(NewBytesLoader([]byte(schema)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Valid case
+	validData := `{
+		"person": {
+			"name": "Alice"
+		}
+	}`
+	res, err := s.Validate(NewBytesLoader([]byte(validData)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Valid() {
+		t.Fatalf("Expected valid, got errors: %v", res.Errors())
+	}
+
+	// Invalid case
+	invalidData := `{
+		"person": {
+			"name": 123
+		}
+	}`
+	res, err = s.Validate(NewBytesLoader([]byte(invalidData)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Valid() {
+		t.Fatal("Expected invalid")
+	}
+}

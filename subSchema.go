@@ -61,10 +61,12 @@ const (
 	KEY_ANY_OF                = "anyOf"
 	KEY_ALL_OF                = "allOf"
 	KEY_NOT                   = "not"
+	KEY_REF                   = "$ref"
 )
 
 type subSchema struct {
-	draft *Draft
+	draft     *Draft
+	refSchema *subSchema
 
 	// basic subSchema meta properties
 	title       *string

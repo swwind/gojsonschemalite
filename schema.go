@@ -23,9 +23,12 @@ package gojsonschema
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"reflect"
 	"regexp"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -41,11 +44,20 @@ func NewSchema(l JSONLoader) (*Schema, error) {
 
 // Schema holds a schema
 type Schema struct {
-	rootSchema        *subSchema
+	rootSchema    *subSchema
+	rootDocument  interface{}
+	idMap         map[string]interface{}
+	referencePool map[string]*subSchema
 }
 
 func (d *Schema) parse(document interface{}, draft Draft) error {
 	d.rootSchema = &subSchema{property: STRING_ROOT_SCHEMA_PROPERTY, draft: &draft}
+	d.rootDocument = document
+	d.idMap = make(map[string]interface{})
+	d.referencePool = make(map[string]*subSchema)
+
+	scanIDs(document, d.idMap)
+
 	return d.parseSchema(document, d.rootSchema)
 }
 
@@ -100,6 +112,28 @@ func (d *Schema) parseSchema(documentNode interface{}, currentSchema *subSchema)
 	}
 	if k, ok := m[KEY_DESCRIPTION].(string); ok {
 		currentSchema.description = &k
+	}
+
+	// $ref
+	if existsMapKey(m, KEY_REF) {
+		if !isKind(m[KEY_REF], reflect.String) {
+			return errors.New(formatErrorDescription(
+				Locale.InvalidType(),
+				ErrorDetails{
+					"expected": TYPE_STRING,
+					"given":    KEY_REF,
+				},
+			))
+		}
+		refStr := m[KEY_REF].(string)
+		if !strings.HasPrefix(refStr, "#") {
+			return errors.New("only internal references starting with '#' are supported: " + refStr)
+		}
+		err := d.parseReference(refStr, currentSchema)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
 	// type
@@ -723,4 +757,109 @@ func (d *Schema) parseDependencies(documentNode interface{}, currentSchema *subS
 	}
 
 	return nil
+}
+
+func (d *Schema) parseReference(refStr string, currentSchema *subSchema) error {
+	if sch, ok := d.referencePool[refStr]; ok {
+		currentSchema.refSchema = sch
+		return nil
+	}
+
+	newSchema := &subSchema{property: KEY_REF, parent: currentSchema}
+	d.referencePool[refStr] = newSchema
+
+	// Resolve the raw node from idMap or by evaluating JSON pointer
+	var resolvedNode interface{}
+	var err error
+
+	if node, ok := d.idMap[refStr]; ok {
+		resolvedNode = node
+	} else if strings.HasPrefix(refStr, "#/") || refStr == "#" {
+		resolvedNode, err = getJSONPointerNode(d.rootDocument, refStr)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("reference '%s' not found in document", refStr)
+	}
+
+	if !isKind(resolvedNode, reflect.Map) {
+		return errors.New(formatErrorDescription(
+			Locale.MustBeOfType(),
+			ErrorDetails{"key": STRING_SCHEMA, "type": TYPE_OBJECT},
+		))
+	}
+
+	err = d.parseSchema(resolvedNode, newSchema)
+	if err != nil {
+		return err
+	}
+
+	currentSchema.refSchema = newSchema
+	return nil
+}
+
+func getJSONPointerNode(doc interface{}, pointer string) (interface{}, error) {
+	if pointer == "" || pointer == "#" {
+		return doc, nil
+	}
+	if strings.HasPrefix(pointer, "#") {
+		pointer = pointer[1:]
+	}
+	if !strings.HasPrefix(pointer, "/") {
+		return nil, fmt.Errorf("invalid json pointer: %s", pointer)
+	}
+
+	parts := strings.Split(pointer, "/")
+	currentNode := doc
+
+	for _, part := range parts[1:] {
+		// Unescape json pointer: ~1 -> /, ~0 -> ~
+		part = strings.ReplaceAll(part, "~1", "/")
+		part = strings.ReplaceAll(part, "~0", "~")
+
+		switch node := currentNode.(type) {
+		case map[string]interface{}:
+			var ok bool
+			currentNode, ok = node[part]
+			if !ok {
+				return nil, fmt.Errorf("key '%s' not found", part)
+			}
+		case []interface{}:
+			idx, err := strconv.Atoi(part)
+			if err != nil || idx < 0 || idx >= len(node) {
+				return nil, fmt.Errorf("invalid index '%s'", part)
+			}
+			currentNode = node[idx]
+		default:
+			return nil, fmt.Errorf("cannot traverse key '%s' on non-container node", part)
+		}
+	}
+
+	return currentNode, nil
+}
+
+func scanIDs(node interface{}, idMap map[string]interface{}) {
+	m, ok := node.(map[string]interface{})
+	if !ok {
+		// If it's a slice, scan each element
+		if s, ok := node.([]interface{}); ok {
+			for _, item := range s {
+				scanIDs(item, idMap)
+			}
+		}
+		return
+	}
+
+	// Check for id or $id
+	for _, key := range []string{"id", "$id"} {
+		if idVal, ok := m[key].(string); ok && strings.HasPrefix(idVal, "#") {
+			idMap[idVal] = node
+		}
+	}
+
+	// Scan children
+	for _, val := range m {
+		scanIDs(val, idMap)
+	}
 }
