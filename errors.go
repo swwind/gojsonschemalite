@@ -1,24 +1,16 @@
 package gojsonschema
 
 import (
-	"bytes"
-	"sync"
-	"text/template"
+	"fmt"
+	"regexp"
 )
 
 var (
-	errorTemplates = errorTemplate{template.New("errors-new"), sync.RWMutex{}}
+	templateRegex = regexp.MustCompile(`\{\{\.([a-zA-Z0-9_]+)\}\}`)
 
-	// ErrorTemplateFuncs allows you to define custom template funcs for use in localization.
-	ErrorTemplateFuncs template.FuncMap
+	// ErrorTemplateFuncs is a stub kept for compatibility.
+	ErrorTemplateFuncs map[string]interface{}
 )
-
-// template.Template is not thread-safe for writing, so some locking is done
-// sync.RWMutex is used for efficiently locking when new templates are created
-type errorTemplate struct {
-	*template.Template
-	sync.RWMutex
-}
 
 type (
 
@@ -292,35 +284,12 @@ func newError(err ResultError, context *JsonContext, value interface{}, locale l
 // format and converts it to a string with replacements. The fields come
 // from the ErrorDetails struct and vary for each type of error.
 func formatErrorDescription(s string, details ErrorDetails) string {
-
-	var tpl *template.Template
-	var descrAsBuffer bytes.Buffer
-	var err error
-
-	errorTemplates.RLock()
-	tpl = errorTemplates.Lookup(s)
-	errorTemplates.RUnlock()
-
-	if tpl == nil {
-		errorTemplates.Lock()
-		tpl = errorTemplates.New(s)
-
-		if ErrorTemplateFuncs != nil {
-			tpl.Funcs(ErrorTemplateFuncs)
+	return templateRegex.ReplaceAllStringFunc(s, func(match string) string {
+		// Extract key name between {{. and }}
+		key := match[3 : len(match)-2]
+		if val, ok := details[key]; ok {
+			return fmt.Sprintf("%v", val)
 		}
-
-		tpl, err = tpl.Parse(s)
-		errorTemplates.Unlock()
-
-		if err != nil {
-			return err.Error()
-		}
-	}
-
-	err = tpl.Execute(&descrAsBuffer, details)
-	if err != nil {
-		return err.Error()
-	}
-
-	return descrAsBuffer.String()
+		return match
+	})
 }
