@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -42,12 +41,12 @@ type jsonSchemaTestCase struct {
 
 //Skip any directories not named appropiately
 // filepath.Walk will also visit files in the root of the test directory
-var testDirectories = regexp.MustCompile(`(draft\d+)`)
+var testDirectories = regexp.MustCompile(`(draft4)`)
 var draftMapping = map[string]Draft{
 	"draft4": Draft4,
-	"draft6": Draft6,
-	"draft7": Draft7,
 }
+
+
 
 func executeTests(t *testing.T, path string) error {
 	file, err := os.Open(path)
@@ -65,7 +64,7 @@ func executeTests(t *testing.T, path string) error {
 		t.Errorf("Error (%s)\n", err.Error())
 	}
 
-	draft := Hybrid
+	draft := Draft4
 	if m := testDirectories.FindString(path); m != "" {
 		draft = draftMapping[m]
 	}
@@ -77,7 +76,7 @@ func executeTests(t *testing.T, path string) error {
 			continue
 		}
 
-		testSchemaLoader := NewRawLoader(test.Schema)
+		testSchemaLoader := NewGoLoader(test.Schema)
 		sl := NewSchemaLoader()
 		sl.Draft = draft
 		sl.Validate = true
@@ -88,7 +87,7 @@ func executeTests(t *testing.T, path string) error {
 		}
 
 		for _, testCase := range test.Tests {
-			testDataLoader := NewRawLoader(testCase.Data)
+			testDataLoader := NewGoLoader(testCase.Data)
 			result, err := testSchema.Validate(testDataLoader)
 
 			if err != nil {
@@ -125,14 +124,6 @@ func TestSuite(t *testing.T) {
 		panic(err.Error())
 	}
 	wd = filepath.Join(wd, "testdata")
-
-	go func() {
-		err := http.ListenAndServe(":1234", http.FileServer(http.Dir(filepath.Join(wd, "remotes"))))
-		if err != nil {
-
-			panic(err.Error())
-		}
-	}()
 
 	err = filepath.Walk(wd, func(path string, fileInfo os.FileInfo, err error) error {
 		if fileInfo.IsDir() && path != wd && !testDirectories.MatchString(fileInfo.Name()) {

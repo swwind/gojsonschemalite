@@ -29,8 +29,7 @@ type (
 	// locale is an interface for defining custom error strings
 	locale interface {
 
-		// False returns a format-string for "false" schema validation errors
-		False() string
+
 
 		// Required returns a format-string for "required" schema validation errors
 		Required() string
@@ -56,8 +55,7 @@ type (
 		// Internal returns a format-string for internal errors
 		Internal() string
 
-		// Const returns a format-string to format a ConstError
-		Const() string
+
 
 		// Enum returns a format-string to format an EnumError
 		Enum() string
@@ -77,8 +75,7 @@ type (
 		// Unique returns a format-string  to format an ItemsMustBeUniqueError
 		Unique() string
 
-		// ArrayContains returns a format-string to format an ArrayContainsError
-		ArrayContains() string
+
 
 		// ArrayMinProperties returns a format-string to format an ArrayMinPropertiesError
 		ArrayMinProperties() string
@@ -92,8 +89,7 @@ type (
 		// InvalidPropertyPattern returns a format-string to format an InvalidPropertyPatternError
 		InvalidPropertyPattern() string
 
-		// InvalidPropertyName returns a format-string to format an InvalidPropertyNameError
-		InvalidPropertyName() string
+
 
 		// StringGTE returns a format-string to format an StringLengthGTEError
 		StringGTE() string
@@ -178,11 +174,7 @@ type (
 		// ParseError returns a format-string for JSON parsing errors
 		ParseError() string
 
-		// ConditionThen returns a format-string for ConditionThenError errors
-		ConditionThen() string
 
-		// ConditionElse returns a format-string for ConditionElseError errors
-		ConditionElse() string
 
 		// ErrorFormat returns a format string for errors
 		ErrorFormat() string
@@ -192,10 +184,7 @@ type (
 	DefaultLocale struct{}
 )
 
-// False returns a format-string for "false" schema validation errors
-func (l DefaultLocale) False() string {
-	return "False always fails validation"
-}
+
 
 // Required returns a format-string for "required" schema validation errors
 func (l DefaultLocale) Required() string {
@@ -237,10 +226,7 @@ func (l DefaultLocale) Internal() string {
 	return `Internal Error {{.error}}`
 }
 
-// Const returns a format-string to format a ConstError
-func (l DefaultLocale) Const() string {
-	return `{{.field}} does not match: {{.allowed}}`
-}
+
 
 // Enum returns a format-string to format an EnumError
 func (l DefaultLocale) Enum() string {
@@ -272,10 +258,7 @@ func (l DefaultLocale) Unique() string {
 	return `{{.type}} items[{{.i}},{{.j}}] must be unique`
 }
 
-// ArrayContains returns a format-string to format an ArrayContainsError
-func (l DefaultLocale) ArrayContains() string {
-	return `At least one of the items must match`
-}
+
 
 // ArrayMinProperties returns a format-string to format an ArrayMinPropertiesError
 func (l DefaultLocale) ArrayMinProperties() string {
@@ -297,10 +280,7 @@ func (l DefaultLocale) InvalidPropertyPattern() string {
 	return `Property "{{.property}}" does not match pattern {{.pattern}}`
 }
 
-// InvalidPropertyName returns a format-string to format an InvalidPropertyNameError
-func (l DefaultLocale) InvalidPropertyName() string {
-	return `Property name of "{{.property}}" does not match`
-}
+
 
 // StringGTE returns a format-string to format an StringLengthGTEError
 func (l DefaultLocale) StringGTE() string {
@@ -445,16 +425,7 @@ func (l DefaultLocale) ParseError() string {
 	return `Expected: {{.expected}}, given: Invalid JSON`
 }
 
-// ConditionThen returns a format-string for ConditionThenError errors
-// If/Else
-func (l DefaultLocale) ConditionThen() string {
-	return `Must validate "then" as "if" was valid`
-}
 
-// ConditionElse returns a format-string for ConditionElseError errors
-func (l DefaultLocale) ConditionElse() string {
-	return `Must validate "else" as "if" was not valid`
-}
 
 // constants
 const (

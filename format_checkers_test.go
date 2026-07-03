@@ -103,7 +103,7 @@ func TestCustomFormat(t *testing.T) {
 		Add("ObjectChecker", objectChecker{}).
 		Add("StringChecker", stringChecker{})
 
-	sl := NewStringLoader(formatSchema)
+	sl := NewBytesLoader([]byte(formatSchema))
 	validResult, err := Validate(sl, NewGoLoader(map[string]interface{}{
 		"arr":  []string{"x", "y", "z"},
 		"bool": true,

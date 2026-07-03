@@ -57,3 +57,7 @@ func TestCheckJsonNumber(t *testing.T) {
 	}
 
 }
+
+func NewStringLoader(s string) JSONLoader {
+	return NewBytesLoader([]byte(s))
+}

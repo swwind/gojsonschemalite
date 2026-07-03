@@ -17,13 +17,10 @@ package gojsonschema
 import (
 	"bytes"
 	"errors"
-
-	"github.com/xeipuuv/gojsonreference"
 )
 
 // SchemaLoader is used to load schemas
 type SchemaLoader struct {
-	pool       *schemaPool
 	AutoDetect bool
 	Validate   bool
 	Draft      Draft
@@ -31,22 +28,14 @@ type SchemaLoader struct {
 
 // NewSchemaLoader creates a new NewSchemaLoader
 func NewSchemaLoader() *SchemaLoader {
-
-	ps := &SchemaLoader{
-		pool: &schemaPool{
-			schemaPoolDocuments: make(map[string]*schemaPoolDocument),
-		},
+	return &SchemaLoader{
 		AutoDetect: true,
 		Validate:   false,
-		Draft:      Hybrid,
+		Draft:      Draft4,
 	}
-	ps.pool.autoDetect = &ps.AutoDetect
-
-	return ps
 }
 
 func (sl *SchemaLoader) validateMetaschema(documentNode interface{}) error {
-
 	var (
 		schema string
 		err    error
@@ -60,17 +49,18 @@ func (sl *SchemaLoader) validateMetaschema(documentNode interface{}) error {
 
 	// If no explicit "$schema" is used, use the default metaschema associated with the draft used
 	if schema == "" {
-		if sl.Draft == Hybrid {
-			return nil
-		}
 		schema = drafts.GetSchemaURL(sl.Draft)
+	}
+
+	metaSchemaJSON := drafts.GetMetaSchema(schema)
+	if metaSchemaJSON == "" {
+		return errors.New("Unsupported metaschema: " + schema)
 	}
 
 	//Disable validation when loading the metaschema to prevent an infinite recursive loop
 	sl.Validate = false
 
-	metaSchema, err := sl.Compile(NewReferenceLoader(schema))
-
+	metaSchema, err := sl.Compile(NewBytesLoader([]byte(metaSchemaJSON)))
 	if err != nil {
 		return err
 	}
@@ -78,7 +68,6 @@ func (sl *SchemaLoader) validateMetaschema(documentNode interface{}) error {
 	sl.Validate = true
 
 	result := metaSchema.validateDocument(documentNode)
-
 	if !result.Valid() {
 		var res bytes.Buffer
 		for _, err := range result.Errors() {
@@ -91,93 +80,13 @@ func (sl *SchemaLoader) validateMetaschema(documentNode interface{}) error {
 	return nil
 }
 
-// AddSchemas adds an arbritrary amount of schemas to the schema cache. As this function does not require
-// an explicit URL, every schema should contain an $id, so that it can be referenced by the main schema
-func (sl *SchemaLoader) AddSchemas(loaders ...JSONLoader) error {
-	emptyRef, _ := gojsonreference.NewJsonReference("")
-
-	for _, loader := range loaders {
-		doc, err := loader.LoadJSON()
-
-		if err != nil {
-			return err
-		}
-
-		if sl.Validate {
-			if err := sl.validateMetaschema(doc); err != nil {
-				return err
-			}
-		}
-
-		// Directly use the Recursive function, so that it get only added to the schema pool by $id
-		// and not by the ref of the document as it's empty
-		if err = sl.pool.parseReferences(doc, emptyRef, false); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-//AddSchema adds a schema under the provided URL to the schema cache
-func (sl *SchemaLoader) AddSchema(url string, loader JSONLoader) error {
-
-	ref, err := gojsonreference.NewJsonReference(url)
-
-	if err != nil {
-		return err
-	}
-
-	doc, err := loader.LoadJSON()
-
-	if err != nil {
-		return err
-	}
-
-	if sl.Validate {
-		if err := sl.validateMetaschema(doc); err != nil {
-			return err
-		}
-	}
-
-	return sl.pool.parseReferences(doc, ref, true)
-}
-
 // Compile loads and compiles a schema
 func (sl *SchemaLoader) Compile(rootSchema JSONLoader) (*Schema, error) {
+	d := Schema{}
 
-	ref, err := rootSchema.JsonReference()
-
+	doc, err := rootSchema.LoadJSON()
 	if err != nil {
 		return nil, err
-	}
-
-	d := Schema{}
-	d.pool = sl.pool
-	d.pool.jsonLoaderFactory = rootSchema.LoaderFactory()
-	d.documentReference = ref
-	d.referencePool = newSchemaReferencePool()
-
-	var doc interface{}
-	if ref.String() != "" {
-		// Get document from schema pool
-		spd, err := d.pool.GetDocument(d.documentReference)
-		if err != nil {
-			return nil, err
-		}
-		doc = spd.Document
-	} else {
-		// Load JSON directly
-		doc, err = rootSchema.LoadJSON()
-		if err != nil {
-			return nil, err
-		}
-		// References need only be parsed if loading JSON directly
-		//  as pool.GetDocument already does this for us if loading by reference
-		err = sl.pool.parseReferences(doc, ref, true)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	if sl.Validate {
